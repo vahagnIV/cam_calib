@@ -10,7 +10,7 @@ find_package(g2o REQUIRED)
 find_package(Eigen3 REQUIRED)
 #find_package(Cholmod)
 #CHOLMOD
-message(${CHOLMOD_INCLUDE_DIR})
+#message(${CHOLMOD_INCLUDE_DIR})
 include_directories(g2o ${Eigen3_INCLUDE_DIRECTORIES} ${CHOLMOD_INCLUDE_DIR})
 
 

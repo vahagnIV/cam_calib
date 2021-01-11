@@ -1,0 +1,118 @@
+\documentclass[a4paper,10pt]{article}
+\usepackage[utf8]{inputenc}
+\usepackage{amsmath}
+\usepackage{mathtools}
+\usepackage{setspace}
+%opening
+\title{}
+\author{}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+
+\end{abstract}
+
+\section{}
+
+Camera Matrix has the following form and depends only on the device itself.
+
+\begin{equation}
+ K=\left(\begin{array}{ccc}
+          f_x & 0 & c_x \\
+          f_y & 0 & c_y \\
+          0 & & 1
+         \end{array}
+\right)
+\end{equation}
+
+Pattern coordinates are defined as:
+
+\begin{equation}
+ {\bf C}^{pq}\equiv {\bf C}^k= a\left(\begin{array}{c}
+                  p \\
+                  q \\
+                  0
+                 \end{array}
+\right)
+\end{equation}
+where $p=0,\ldots, N_x-1$ and $q=0,\ldots,N_y-1$ enumerate corners in the pattern, $k = qN_x + p$ is unified index and $a$ is the length of the pattern's square size in any units of measure.
+
+
+We perform $M$ measurements enumerated by index $\mu = 0,\ldots, M-1$. For $\mu^{th}$ experiment we have the transformation matrix ${\bf R}_\mu$ and a translation vector ${\bf T}_\mu$ that transform the pattern points ${\bf C}$ to the camera coordinate system.
+
+\begin{equation}
+ {\bf X}^k_\mu = {\bf R}_\mu {\bf C}^k+ {\bf T}_\mu
+\end{equation}
+
+The corresponding points are obtained via camera projection matrix as follows
+{\setstretch{1.7}
+\begin{equation}
+ {\bf U} = 
+ {\bf K} {\bf X}^{k}_\mu \equiv \left(\begin{array}{c}
+  u^{k}_\mu \\ v^{k}_\mu \\ w^{k}_\mu
+ \end{array}\right)
+\end{equation}
+}
+\begin{equation}
+ x^{k}_\mu = u^{k}_\mu / w^{k}_\mu, \quad y^{k}_\mu = v^{k}_\mu / w^{k}_\mu
+\end{equation}
+
+Let us define $\tilde{x}, \tilde{y}$ - distorted points and
+
+\begin{equation}
+ \rho^{(k)} = \sqrt{x^2 + y^2}
+\end{equation}
+
+Radial distortion:
+{\setstretch{1.7}
+\begin{equation}
+\begin{array}{c}
+ \tilde{x} = x + x(k_1 \rho^2 + k_2 \rho^4 + k_3 \rho^6) \\
+ \tilde{y} = y + y(k_1 \rho^2 + k_2 \rho^4 + k_3 \rho^6)
+\end{array}
+\end{equation}
+}
+
+Skew distortion:
+{\setstretch{1.7}
+\begin{equation}
+ \begin{array}{c}
+  \tilde{x} = x + 2 p_1 xy + p_2 \left(\rho^2 + x^2\right) \\
+  \tilde{x} = y + 2 p_2 xy + p_1 \left(\rho^2 + y^2\right)
+ \end{array}
+\end{equation}
+}
+
+So, we have
+{\setstretch{1.7}
+\begin{equation}
+\begin{array}{c}
+ \tilde{x}^k_\mu\equiv \tilde{x}^k_\mu\left(R_\mu, T_\mu, C^k, K, k_1,k_2,k_3, p_1,p_2\right) \\
+ \tilde{y}^k_\mu\equiv \tilde{y}^k_\mu\left(R_\mu, T_\mu, C^k, K, k_1,k_2,k_3, p_1,p_2\right) \\
+\end{array} 
+\end{equation}
+}
+The error functions ${\bf e}^k_\mu$ read:
+
+{\setstretch{1.7}
+\begin{equation}
+ {\bf e}^k_\mu = \left(
+ \begin{array}{c}
+                  \operatorname{measured}(x^k_\mu) - \tilde{x}^k_\mu \\
+                  \operatorname{measured}({y}^k_\mu) - \tilde{y}^k_\mu \\
+                 \end{array}\right)
+\end{equation}
+}
+
+And the function we have to minimize reads:
+
+\begin{equation}
+ L = \sum\limits_{k,\mu} {\bf e}^k_\mu {\bf e}^k_\mu
+\end{equation}
+
+
+
+\end{document}

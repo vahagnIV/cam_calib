@@ -14,10 +14,10 @@ namespace g2o_learning {
  * k_1, k_2, p_1, p_2, k_3 - distortion parameters
  */
 
-class VertexCameraBAL : public g2o::BaseVertex<9, Eigen::VectorXd> {
+class VertexCamera : public g2o::BaseVertex<9, Eigen::VectorXd> {
  public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW;
-  VertexCameraBAL() = default;
+  VertexCamera() = default;
 
   bool read(std::istream & /*is*/) override {
     assert(!"Read is not Implemented yet");
@@ -34,7 +34,7 @@ class VertexCameraBAL : public g2o::BaseVertex<9, Eigen::VectorXd> {
   }
 
   void oplusImpl(const double * update) override {
-    Eigen::VectorXd::ConstMapType v(update, VertexCameraBAL::Dimension);
+    Eigen::VectorXd::ConstMapType v(update, VertexCamera::Dimension);
     _estimate += v;
   }
 };
