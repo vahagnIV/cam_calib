@@ -34,6 +34,46 @@ IntrinsicSolver::IntrinsicSolver(const std::vector<std::vector<Eigen::Vector2d>>
 
 }
 
+void IntrinsicSolver::FindHomographyFromFirst4Points(const std::vector<Eigen::Vector3d> & points_to,
+                                                     const std::vector<Eigen::Vector3d> & points_from,
+                                                     Eigen::Matrix<double, 3, 3> & out_homography) {
+
+  if (points_to.size() < 4 || points_from.size() < 4)
+    throw std::runtime_error("FindHomographyFromFirst4Points: there should be at least 4 point correspondences. ");
+
+  Eigen::Matrix<double, 8, 9> L;
+
+  const Eigen::Vector3d U0 = points_to[0] / points_to[0][2];
+  const Eigen::Vector3d X0 = points_from[0] / points_from[0][2];
+
+  const Eigen::Vector3d U1 = points_to[1] / points_to[1][2];
+  const Eigen::Vector3d X1 = points_from[1] / points_from[1][2];
+
+  const Eigen::Vector3d U2 = points_to[2] / points_to[2][2];
+  const Eigen::Vector3d X2 = points_from[2] / points_from[2][2];
+
+  const Eigen::Vector3d U3 = points_to[3] / points_to[3][2];
+  const Eigen::Vector3d X3 = points_from[3] / points_from[3][2];
+
+
+  L << X0[0], X0[1], 1, 0, 0, 0, -U0[0] * X0[0], -U0[0] * X0[1], -U0[0],
+      0, 0, 0, X0[0], X0[1], 1, -U0[1] * X0[0], -U0[1] * X0[1], -U0[1],
+      X1[0], X1[1], 1, 0, 0, 0, -U1[0] * X1[0], -U1[0] * X1[1], -U1[0],
+      0, 0, 0, X1[0], X1[1], 1, -U1[1] * X1[0], -U1[1] * X1[1], -U1[1],
+      X2[0], X2[1], 1, 0, 0, 0, -U2[0] * X2[0], -U2[0] * X2[1], -U2[0],
+      0, 0, 0, X2[0], X2[1], 1, -U2[1] * X2[0], -U2[1] * X2[1], -U2[1],
+      X3[0], X3[1], 1, 0, 0, 0, -U3[0] * X3[0], -U3[0] * X3[1], -U3[0],
+      0, 0, 0, X3[0], X3[1], 1, -U3[1] * X3[0], -U3[1] * X3[1], -U3[1];
+
+  Eigen::JacobiSVD<Eigen::Matrix<double, 8, 9>> svd(L, Eigen::ComputeFullU | Eigen::ComputeFullV);
+
+  const Eigen::Matrix<double, 9, 9> & right_singluar_values = svd.matrixV();
+
+  out_homography << right_singluar_values(0, 8), right_singluar_values(1, 8), right_singluar_values(2, 8),
+      right_singluar_values(3, 8), right_singluar_values(4, 8), right_singluar_values(5, 8),
+      right_singluar_values(6, 8), right_singluar_values(7, 8), right_singluar_values(8, 8);
+}
+
 int IntrinsicSolver::FindIntrinsicParameters() {
   return 0;
 }

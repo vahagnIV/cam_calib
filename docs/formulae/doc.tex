@@ -3,6 +3,7 @@
 \usepackage{amsmath}
 \usepackage{mathtools}
 \usepackage{setspace}
+\usepackage{indentfirst}
 %opening
 \title{}
 \author{}
@@ -15,31 +16,19 @@
 
 \end{abstract}
 
-\section{}
+\section{Camera geometry}
 
 Camera Matrix has the following form and depends only on the device itself.
 
 \begin{equation}
  K=\left(\begin{array}{ccc}
-          f_x & 0 & c_x \\
-          f_y & 0 & c_y \\
-          0 & & 1
+          f_x & s & c_x \\
+          0 & f_y & c_y \\
+          0 & 0 & 1
          \end{array}
 \right)
 \end{equation}
-
-Pattern coordinates are defined as:
-
-\begin{equation}
- {\bf C}^{pq}\equiv {\bf C}^k= a\left(\begin{array}{c}
-                  p \\
-                  q \\
-                  0
-                 \end{array}
-\right)
-\end{equation}
-where $p=0,\ldots, N_x-1$ and $q=0,\ldots,N_y-1$ enumerate corners in the pattern, $k = qN_x + p$ is unified index and $a$ is the length of the pattern's square size in any units of measure.
-
+Pattern coordinates are defined as ${\bf C}^k$.
 
 We perform $M$ measurements enumerated by index $\mu = 0,\ldots, M-1$. For $\mu^{th}$ experiment we have the transformation matrix ${\bf R}_\mu$ and a translation vector ${\bf T}_\mu$ that transform the pattern points ${\bf C}$ to the camera coordinate system.
 
@@ -50,10 +39,9 @@ We perform $M$ measurements enumerated by index $\mu = 0,\ldots, M-1$. For $\mu^
 The corresponding points are obtained via camera projection matrix as follows
 {\setstretch{1.7}
 \begin{equation}
- {\bf U} = 
- {\bf K} {\bf X}^{k}_\mu \equiv \left(\begin{array}{c}
+ {\bf U}^k_\mu = {\bf K} {\bf X}^{k}_\mu \equiv {\bf K} \left({\bf R}_\mu {\bf C}^k + {\bf T}_\mu\right) \equiv \left(\begin{array}{c}
   u^{k}_\mu \\ v^{k}_\mu \\ w^{k}_\mu
- \end{array}\right)
+ \end{array}\right)\label{uproj}
 \end{equation}
 }
 \begin{equation}
@@ -113,6 +101,102 @@ And the function we have to minimize reads:
  L = \sum\limits_{k,\mu} {\bf e}^k_\mu {\bf e}^k_\mu
 \end{equation}
 
+\section{Calibration on a flat chessboard pattern}
+
+Let us consider a special case when the points ${\bf C}^k$ are the corners of a chessboard pattern:
+
+\begin{equation}
+ {\bf C}^{pq}\equiv {\bf C}^k= a\left(\begin{array}{c}
+                  p \\
+                  q \\
+                  0
+                 \end{array}
+\right)
+\end{equation}
+where $p=0,\ldots, N_x-1$ and $q=0,\ldots,N_y-1$ enumerate corners in the pattern, $k = qN_x + p$ is unified index and $a$ is the length of the pattern's square size in any units of measure.
+
+Since, on the pattern plane in its own coordinate system $Z=0$, the last column of ${\bf R}$ does not play any role, and, the transformation \eqref{uproj} can be rewritten as:
+
+\begin{equation}
+ {\bf U}^k_\mu = {\bf H}_\mu {\tilde{\bf  C}}^k, \quad {\tilde{\bf  C}}^k = \left(\begin{array}{c}
+c^k_1 \\                                                                               
+c^k_2 \\
+1
+\end{array}
+\right)
+\end{equation}
+where
+\begin{equation}
+ {\bf H} = \lambda {\bf K}\cdot\left(
+ \begin{array}{ccc}
+  r_{11} & r_{12} & t_1 \\
+  r_{21} & r_{22} & t_2 \\
+  r_{31} & r_{32} & t_3 \\
+ \end{array}
+ \right)\equiv\left(
+ \begin{array}{ccc}
+  h_{1} & h_{2} & h_3 \\
+  h_{4} & h_{5} & h_6 \\
+  h_{7} & h_{8} & h_9 \\
+ \end{array}
+ \right) 
+ %\equiv [{\bf h}_1 \quad {\bf h}_2 \quad {\bf h}_3] 
+ \label{homography}
+\end{equation}
+is a homography matrix that maps the pattern plane onto the image plane. Here $\lambda$ is an arbitrary constant. Here we dropped the index $\mu$ for readability.
+
+Each point correspondence $U^k_\mu\to C^k_\mu$ gives us a constraint on the elements of ${\bf H}$
+
+
+
+Multiplying \eqref{homography} from the left by ${\bf K}^-1$ and imposing that ${\bf r}_1$ and ${\bf r}_2$ are orthonormal gives us 2 constraints on the homography matrix:
+
+{\setstretch{1.7}
+\begin{equation}
+\begin{array}{c}
+ {\bf h}_1^T {\bf K}^{-T} {\bf K}^{-1}{\bf h}_2 = 0 \\
+ {\bf h}_1^T {\bf K}^{-T} {\bf K}^{-1}{\bf h}_1 = {\bf h}_2^T {\bf K}^{-T} {\bf K}^{-1}{\bf h}_2
+\end{array} 
+\end{equation}
+}
+{\setstretch{1.7}
+\begin{equation}
+ {\bf B} = {\bf K}^{-T} {\bf K}^{-1} = \left(
+ \begin{array}{ccc}
+ \frac{1}{f_x^2} & -\frac{s}{f_x^2 f_y} & \frac{c_y s - c_x f_y}{f_x^2f_y}\\
+ -\frac{s}{f_x^2 f_y} & \frac{s^2}{f_x^2f_y^2} + \frac{1}{f_y^2} & -\frac{s(c_y s - c_x f_y)}{f_x^2 f_y^2} - \frac{c_y}{f_y^2} \\
+ \frac{c_y s - c_x f_y}{f_x^2 f_y} & - \frac{s(c_y s - c_x f_y)}{f_x^2 f_y^2} - \frac{c_y}{f_y^2} & \frac{(c_y s - c_x f_y)^2}{f_x^2 f_y^2} + \frac{c_y^2}{f_y^2} + 1
+ \end{array}
+\right)
+\end{equation}
+}
+
+\section{Homography estimation by 4 point correspondences}
+
+Let us have 4 points $U^k=(u_1, u_2, 1)$ and $X^k = (X_1^k, X_2^k, 1)$ that are related via a homography matrix ${\bf H}$ as follows:
+
+\begin{equation}
+ u_\alpha^k = \frac{\left({\bf H}{\bf X}^k\right)_\alpha}{\left({\bf H}{\bf X}^k\right)_3}
+\end{equation}
+
+Taking into account the notation \eqref{homography}, this equation can be rewritten as follows:
+
+\begin{equation}
+ \left(\begin{array}{ccccccccc}
+        X^k_1 & X^k_2 & 1 & 0 & 0 & 0 & -u^k_1 X^k_1 & - u^k_1 X^k_2 & -u^k_1\\
+        0 & 0 & 0 & X^k_1 & X^k_2 & 1 & -u^k_2 X^k_1 & -u^k_2 X^k_2 & -u^k_2
+       \end{array}
+\right)\cdot\left(\begin{array}{c}
+                              h_1 \\h_2\\h_3\\h_4\\h_5\\h_6\\h_7\\h_8\\h_9
+                             \end{array}
+\right) = 0
+\end{equation}
+
+Stacking 4 such equations together we get an $8\times 9$ matrix ${\bf L}$ and the combined equations can be rewritten as follows:
+
+\begin{equation}
+ {\bf L}{\bf h} = 0
+\end{equation}
 
 
 \end{document}
