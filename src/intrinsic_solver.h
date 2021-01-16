@@ -16,10 +16,12 @@ class IntrinsicSolver {
   int FindIntrinsicParameters();
   void Calbirate(const std::vector<std::vector<Eigen::Vector2d>> &points,
                  const std::vector<std::vector<Eigen::Vector2d>> &original_points);
- private:
+
+
   void Find3HomographyFromPlanar4Points(const std::vector<Eigen::Vector2d> &points_to,
                                         const std::vector<Eigen::Vector2d> &points_from,
                                         Matx33d &out_homography) const;
+ private:
   void GetEstimate(const std::vector<Matx33d> &homographies,
                    Matx33d &projection_matrix) const;
   g2o::SparseOptimizer optimizer_;

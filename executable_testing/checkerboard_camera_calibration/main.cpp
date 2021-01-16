@@ -31,19 +31,22 @@ void ExtractCorners(const std::vector<std::string> &imnames,
       for (const cv::Point2f &corner: corners) {
         out_corners.back().push_back(Eigen::Vector2d(corner.x, corner.y));
       }
+//      cv::drawChessboardCorners(image, pattern_size, corners, true);
+//      cv::imshow("im",image);
+//      cv::waitKey();
     }
 
   }
 }
 
 void ComputeOriginalPoints(const cv::Size &pattern_size, std::vector<Eigen::Vector2d> &out_points) {
-  for (int i = 0; i < pattern_size.width; ++i) {
-    for (int j = 0; j < pattern_size.height; ++j) {
+  for (int j = 0; j < pattern_size.height; ++j) {
+    for (int i = 0; i < pattern_size.width; ++i) {
       out_points.push_back(Eigen::Vector2d(i, j));
     }
   }
 }
-/*
+
 void TestHomography(g2o_learning::IntrinsicSolver & solver){
   Eigen::Matrix<double, 3, 3> H_org;
   H_org << 1, 5, 3, 4, 5, 6, 7.569, 8, 2;
@@ -67,7 +70,7 @@ void TestHomography(g2o_learning::IntrinsicSolver & solver){
 
   solver.Find3HomographyFromPlanar4Points(transformed_point, original_point, h);
   std::cout << h / h(0, 0) << std::endl << std::endl << std::endl;
-}*/
+}
 
 int main(int argc, char *argv[]) {
 
@@ -79,8 +82,8 @@ int main(int argc, char *argv[]) {
   std::vector<Eigen::Vector2d> pattern_points_2d;
   ComputeOriginalPoints(pattern_size, pattern_points_2d);
 
-  g2o_learning::IntrinsicSolver
-      solver;
+  g2o_learning::IntrinsicSolver solver;
+//  TestHomography(solver);
   solver.Calbirate(corners, std::vector<std::vector<Eigen::Vector2d> >(corners.size(), pattern_points_2d));
   //solver.FindIntrinsicParameters();
 
