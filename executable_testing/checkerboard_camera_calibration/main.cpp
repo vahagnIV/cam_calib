@@ -36,30 +36,17 @@ void ExtractCorners(const std::vector<std::string> &imnames,
   }
 }
 
-void ComputeOriginalPoints(const cv::Size &pattern_size, std::vector<Eigen::Vector3d> &out_points) {
+void ComputeOriginalPoints(const cv::Size &pattern_size, std::vector<Eigen::Vector2d> &out_points) {
   for (int i = 0; i < pattern_size.width; ++i) {
     for (int j = 0; j < pattern_size.height; ++j) {
-      out_points.push_back(Eigen::Vector3d(i, j, 0));
+      out_points.push_back(Eigen::Vector2d(i, j));
     }
   }
 }
-
-int main(int argc, char *argv[]) {
-
-  const cv::Size pattern_size(8, 13);
-  std::vector<std::string> files;
-  ListDirectory("../../../data/calib", files);
-  std::vector<std::vector<Eigen::Vector2d>> corners;
-  ExtractCorners(files, corners, pattern_size);
-  std::vector<Eigen::Vector3d> pattern_points_3d;
-  ComputeOriginalPoints(pattern_size, pattern_points_3d);
-
-  g2o_learning::IntrinsicSolver
-      solver(corners, std::vector<std::vector<Eigen::Vector3d> >(corners.size(), pattern_points_3d));
-  solver.FindIntrinsicParameters();
-
+/*
+void TestHomography(g2o_learning::IntrinsicSolver & solver){
   Eigen::Matrix<double, 3, 3> H_org;
-  H_org << 1, 5, 3, 4, 5, 6, 7, 8, 2;
+  H_org << 1, 5, 3, 4, 5, 6, 7.569, 8, 2;
 
   std::cout << H_org << std::endl;
   std::cout << H_org.determinant() << std::endl;
@@ -80,5 +67,23 @@ int main(int argc, char *argv[]) {
 
   solver.Find3HomographyFromPlanar4Points(transformed_point, original_point, h);
   std::cout << h / h(0, 0) << std::endl << std::endl << std::endl;
+}*/
+
+int main(int argc, char *argv[]) {
+
+  const cv::Size pattern_size(8, 13);
+  std::vector<std::string> files;
+  ListDirectory("../../../data/calib", files);
+  std::vector<std::vector<Eigen::Vector2d>> corners;
+  ExtractCorners(files, corners, pattern_size);
+  std::vector<Eigen::Vector2d> pattern_points_2d;
+  ComputeOriginalPoints(pattern_size, pattern_points_2d);
+
+  g2o_learning::IntrinsicSolver
+      solver;
+  solver.Calbirate(corners, std::vector<std::vector<Eigen::Vector2d> >(corners.size(), pattern_points_2d));
+  //solver.FindIntrinsicParameters();
+
+
   return 0;
 }

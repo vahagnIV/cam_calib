@@ -10,9 +10,15 @@
 #include "vertex_camera.h"
 namespace g2o_learning {
 
-IntrinsicSolver::IntrinsicSolver(const std::vector<std::vector<Eigen::Vector2d>> &points,
-                                 const std::vector<std::vector<Eigen::Vector3d>> &original_points) {
+void IntrinsicSolver::Calbirate(const std::vector<std::vector<Eigen::Vector2d>> &points,
+                                const std::vector<std::vector<Eigen::Vector2d>> &original_points) {
   assert(points.size() == original_points.size());
+  std::vector<Matx33d> homographies(points.size());
+  for (int i = 0; i < points.size(); ++i) {
+    Find3HomographyFromPlanar4Points(points[i], original_points[i], homographies[i]);
+  }
+  Matx33d projection_matrix;
+  GetEstimate(homographies, projection_matrix);
 
   VertexCamera *camera_params = new VertexCamera();
   camera_params->setId(0);
@@ -29,14 +35,53 @@ IntrinsicSolver::IntrinsicSolver(const std::vector<std::vector<Eigen::Vector2d>>
     translation_vector->setId(2 * measurement_id + 2);
     // TODO: initizlize translation vector
 
-
   }
+}
+
+void IntrinsicSolver::GetEstimate(const std::vector<Matx33d> &homographies,
+                                  Matx33d &projection_matrix) const {
+  // Separate rotation and projection matrixes
+  Eigen::Matrix<double, 6, 6> v;
+  v.resize(6, Eigen::NoChange);
+  for (int i = 0; i < 3; ++i) {
+    const Matx33d &h = homographies[i];
+
+    std::cout << h << std::endl << std::endl;
+    v(2 * i, 0) = h(0, 0) * h(1, 0);
+    v(2 * i, 1) = h(0, 0) * h(1, 1) + h(0, 1) * h(1, 0);
+    v(2 * i, 2) = h(0, 1) * h(1, 1);
+    v(2 * i, 3) = h(0, 2) * h(1, 0) + h(0, 0) * h(1, 2);
+    v(2 * i, 4) = h(0, 2) * h(1, 1) + h(0, 1) * h(1, 2);
+    v(2 * i, 5) = h(0, 2) * h(1, 2);
+
+    v(2 * i + 1, 0) = h(0, 0) * h(0, 0) - h(1, 1) * h(1, 1);
+    v(2 * i + 1, 1) = 2 * h(0, 0) * h(0, 1) - 2 * h(1, 0) * h(1, 1);
+    v(2 * i + 1, 2) = h(0, 1) * h(0, 1) - h(1, 1) * h(1, 1);
+    v(2 * i + 1, 3) = 2 * h(0, 2) * h(0, 0) - 2 * h(1, 0) * h(1, 2);
+    v(2 * i + 1, 4) = 2 * h(0, 2) * h(0, 1) - 2 * h(1, 2) * h(1, 1);
+    v(2 * i + 1, 5) = h(0, 2) * h(0, 2) - h(1, 2) * h(1, 2);
+  }
+
+
+
+  Eigen::JacobiSVD<Eigen::Matrix<double, 6, 6>> svd(v, Eigen::ComputeFullU | Eigen::ComputeFullV);
+  const Eigen::Matrix<double, 6, 6> &right_singular_matrix = svd.matrixV();
+  for (int j = 0; j < 6; ++j) {
+    std::cout << right_singular_matrix(5, j) / right_singular_matrix(5, 5)  << std::endl;
+  }
+
+  //(B 01 B 02 − B 00 B 12 )/(B 00 B 11 − B 01
+  //)
+  std::cout << (right_singular_matrix(5, 1) * right_singular_matrix(5, 2)  - right_singular_matrix(5, 0) * right_singular_matrix(5, j))
+//  std::cout << right_singular_matrix(0, 5) << " " << right_singular_matrix(1, 5) << " " << right_singular_matrix(2, 5)
+//            << " " << right_singular_matrix(3, 5) << " " << right_singular_matrix(4, 5) << " "
+//            << right_singular_matrix(5, 5) << std::endl;
 
 }
 
 void IntrinsicSolver::Find3HomographyFromPlanar4Points(const std::vector<Eigen::Vector2d> &points_to,
                                                        const std::vector<Eigen::Vector2d> &points_from,
-                                                       Eigen::Matrix<double, 3, 3> &out_homography) {
+                                                       Matx33d &out_homography) const {
 
   if (points_to.size() < 4 || points_from.size() < 4)
     throw std::runtime_error("FindHomographyFromFirst4Points: there should be at least 4 point correspondences. ");
