@@ -46,7 +46,7 @@ void ComputeOriginalPoints(const cv::Size &pattern_size, std::vector<Eigen::Vect
     }
   }
 }
-
+/*
 void TestHomography(g2o_learning::IntrinsicSolver & solver){
   Eigen::Matrix<double, 3, 3> H_org;
   H_org << 1, 5, 3, 4, 5, 6, 7.569, 8, 2;
@@ -70,7 +70,7 @@ void TestHomography(g2o_learning::IntrinsicSolver & solver){
 
   solver.Find3HomographyFromPlanar4Points(transformed_point, original_point, h);
   std::cout << h / h(0, 0) << std::endl << std::endl << std::endl;
-}
+}*/
 
 int main(int argc, char *argv[]) {
 

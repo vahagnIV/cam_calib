@@ -21,7 +21,7 @@ void IntrinsicSolver::Calbirate(const std::vector<std::vector<Eigen::Vector2d>> 
     Find3HomographyFromPlanar4Points(pts, pts1, homographies[i]);
   }
   VertexCamera::EstimateType camera_matrix_params_estimate;
-  double lambda = GetCameraMatrixInitialEstimate(homographies, camera_matrix_params_estimate);
+  GetCameraMatrixInitialEstimate(homographies, camera_matrix_params_estimate);
 
   // Camera Matrix
   VertexCamera * camera_params = new VertexCamera();
@@ -29,32 +29,24 @@ void IntrinsicSolver::Calbirate(const std::vector<std::vector<Eigen::Vector2d>> 
   camera_params->setEstimate(camera_matrix_params_estimate);
   optimizer_.addVertex(camera_params);
 
-  //
   Matx33d K;
   K << camera_matrix_params_estimate[0], 0, camera_matrix_params_estimate[2],
       0, camera_matrix_params_estimate[1], camera_matrix_params_estimate[3],
       0, 0, 1;
 
-  std::cout << "K = " << K << std::endl;
   Matx33d Kinv = K.inverse();
 
   for (size_t measurement_id = 0; measurement_id < points.size(); ++measurement_id) {
-
     g2o::VertexSE3Expmap * rot_matrix_mu = new g2o::VertexSE3Expmap();
-    rot_matrix_mu->setId(2 * measurement_id + 1);
+    rot_matrix_mu->setId(measurement_id + 1);
     Matx33d rotation_matrix_mu;
     Eigen::Vector3d translation_vector_mu;
 
-
     ComputeRotationMatrix(homographies[measurement_id], Kinv, rotation_matrix_mu, translation_vector_mu);
     Eigen::Quaterniond rquat(rotation_matrix_mu);
-
-    // TODO: initialize rotation matrix
-
-    g2o::VertexPointXYZ * translation_vector = new g2o::VertexPointXYZ();
-    translation_vector->setId(2 * measurement_id + 2);
-    // TODO: initizlize translation vector
-
+    rquat.normalize();
+    g2o::SE3Quat se_3_quat(rquat, translation_vector_mu);
+    rot_matrix_mu->setEstimate(se_3_quat);
   }
 }
 
@@ -85,8 +77,8 @@ void IntrinsicSolver::ComputeRotationMatrix(const IntrinsicSolver::Matx33d & h,
 
 }
 
-double IntrinsicSolver::GetCameraMatrixInitialEstimate(const std::vector<Matx33d> & homographies,
-                                                       Eigen::VectorXd & out_projection_matrix) const {
+void IntrinsicSolver::GetCameraMatrixInitialEstimate(const std::vector<Matx33d> & homographies,
+                                                     Eigen::VectorXd & out_projection_matrix) const {
 
   Eigen::Matrix<double, 6, 6> v;
   v.resize(6, Eigen::NoChange);
@@ -132,8 +124,6 @@ double IntrinsicSolver::GetCameraMatrixInitialEstimate(const std::vector<Matx33d
   std::cout << "cy = " << cy << std::endl;
   std::cout << "fx = " << fx << std::endl;
   std::cout << "fy = " << fy << std::endl;
-
-  return lambda;
 
 }
 

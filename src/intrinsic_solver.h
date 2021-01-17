@@ -17,15 +17,15 @@ class IntrinsicSolver {
   void Calbirate(const std::vector<std::vector<Eigen::Vector2d>> & points,
                  const std::vector<std::vector<Eigen::Vector2d>> & original_points);
 
+ private:
   void Find3HomographyFromPlanar4Points(const std::vector<Eigen::Vector2d> & points_to,
                                         const std::vector<Eigen::Vector2d> & points_from,
                                         Matx33d & out_homography) const;
- private:
   void ComputeRotationMatrix(const Matx33d & homogrpaphy,
                              const Matx33d & Kinv,
                              Matx33d & out_rotM,
                              Eigen::Vector3d & out_T);
-  double GetCameraMatrixInitialEstimate(const std::vector<Matx33d> & homographies,
+  void GetCameraMatrixInitialEstimate(const std::vector<Matx33d> & homographies,
                                         Eigen::VectorXd & out_projection_matrix) const;
   g2o::SparseOptimizer optimizer_;
 };
