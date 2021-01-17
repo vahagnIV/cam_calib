@@ -156,9 +156,12 @@ Multiplying \eqref{homography} from the left by ${\bf K}^-1$ and imposing that $
 \begin{array}{c}
  {\bf h}_1^T {\bf K}^{-T} {\bf K}^{-1}{\bf h}_2 = 0 \\
  {\bf h}_1^T {\bf K}^{-T} {\bf K}^{-1}{\bf h}_1 = {\bf h}_2^T {\bf K}^{-T} {\bf K}^{-1}{\bf h}_2
-\end{array} 
+\end{array} \label{bconstraints}
 \end{equation}
 }
+
+Let us define 
+
 {\setstretch{1.7}
 \begin{equation}
  {\bf B} = {\bf K}^{-T} {\bf K}^{-1} = \left(
@@ -170,6 +173,40 @@ Multiplying \eqref{homography} from the left by ${\bf K}^-1$ and imposing that $
 \right)
 \end{equation}
 }
+
+\begin{equation}
+ {\bf b} = \left(B_{11},B_{12}, B_{22}, B_13, B_{23}, B_{33}\right)^T
+\end{equation}
+
+With this notations the constraints \eqref{bconstraints} can be rewritten as follows:
+
+% \begin{equation}
+% {\bf V} = \left(
+%  \begin{array}{cccccc}
+%   h_{11}h_{12} & h_{12}h_{21} + h_{11}h_{22}  & h_{21}h_{22} & h_{12}h_{31} + h_{11}h_{32} & h_{31}h_{22} + h_{21}h_{32} & h{31}h_{32} \\
+%   h_{11}^2 - h_{12}^2 & 2(h_{11}h_{21} - h_{12}h_{22}) & h_{21}^2 - h_{22}^2 & 2(h_{31}h_{11} - h_{12}h_{32}) & 2(h_{21}h_{31} - h_{22}h_{32}) & h_{31}^2 - h_{32}^2\end{array}\right)
+% \end{equation}
+
+\begin{equation}
+ {\bf V}{\bf b} = 0,
+\end{equation}
+where
+{\setstretch{1.7}
+\begin{equation}
+{\bf V}^T = \left(
+\begin{array}{cc}
+ h_{11}h_{12} &  h_{11}^2 - h_{12}^2\\
+ h_{12}h_{21} + h_{11}h_{22} & 2(h_{11}h_{21} - h_{12}h_{22}) \\
+ h_{21}h_{22} & h_{21}^2 - h_{22}^2 \\
+ h_{12}h_{31} + h_{11}h_{32} & 2(h_{31}h_{11} - h_{12}h_{32}) \\
+ h_{31}h_{22} + h_{21}h_{32} & 2(h_{21}h_{31} - h_{22}h_{32}) \\
+ h_{31}h_{32} & h_{31}^2 - h_{32}^2
+\end{array}\right)
+\end{equation}
+}
+
+Stacking $n\geq 3$ equations we can obtain the vector ${\bf b}$ up to an arbitrary scalar.
+
 
 \section{Homography estimation by 4 point correspondences}
 

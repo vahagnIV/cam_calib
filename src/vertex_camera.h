@@ -37,6 +37,36 @@ class VertexCamera : public g2o::BaseVertex<9, Eigen::VectorXd> {
     Eigen::VectorXd::ConstMapType v(update, VertexCamera::Dimension);
     _estimate += v;
   }
+
+ public:
+  Eigen::Vector2d map(const Eigen::Vector3d & vector) {
+    const double & fx = _estimate[0];
+    const double & fy = _estimate[1];
+    const double & cx = _estimate[2];
+    const double & cy = _estimate[3];
+    const double & k1 = _estimate[4];
+    const double & k2 = _estimate[5];
+    const double & p1 = _estimate[6];
+    const double & p2 = _estimate[7];
+    const double & k3 = _estimate[8];
+
+    Eigen::Vector2d result;
+    double & x = result[0];
+    double & y = result[1];
+
+    double z_inv = 1 / vector[3];
+    x = (vector[0] * fx + cx) * z_inv;
+    y = (vector[1] * fy + cy) * z_inv;
+
+    double r2 = x * x + y * y;
+    double r4 = r2 * r2;
+    double r6 = r4 * r2;
+    double xdiff = x * (k1 * r2 + k2 * r4 + k3 * r6) + 2 * p1 * y * x + p2 * (r2 + x * x);
+    double ydiff = y * (k1 * r2 + k2 * r4 + k3 * r6) + 2 * p2 * y * x + p1 * (r2 + y * y);
+    x += xdiff;
+    y += ydiff;
+    return result;
+  }
 };
 
 }

@@ -6,8 +6,12 @@
 #include <g2o/types/slam2d/vertex_point_xy.h>
 #include <g2o/types/sba/vertex_se3_expmap.h>
 #include <g2o/types/slam3d/vertex_pointxyz.h>
-
+#include <g2o/core/optimization_algorithm_levenberg.h>
+#include <g2o/core/block_solver.h>
+#include <g2o/solvers/cholmod/linear_solver_cholmod.h>
 #include "vertex_camera.h"
+#include "edge_error.h"
+
 namespace g2o_learning {
 
 void IntrinsicSolver::Calbirate(const std::vector<std::vector<Eigen::Vector2d>> & points,
@@ -35,10 +39,9 @@ void IntrinsicSolver::Calbirate(const std::vector<std::vector<Eigen::Vector2d>> 
       0, 0, 1;
 
   Matx33d Kinv = K.inverse();
+  int edge_id;
 
   for (size_t measurement_id = 0; measurement_id < points.size(); ++measurement_id) {
-    g2o::VertexSE3Expmap * rot_matrix_mu = new g2o::VertexSE3Expmap();
-    rot_matrix_mu->setId(measurement_id + 1);
     Matx33d rotation_matrix_mu;
     Eigen::Vector3d translation_vector_mu;
 
@@ -46,8 +49,34 @@ void IntrinsicSolver::Calbirate(const std::vector<std::vector<Eigen::Vector2d>> 
     Eigen::Quaterniond rquat(rotation_matrix_mu);
     rquat.normalize();
     g2o::SE3Quat se_3_quat(rquat, translation_vector_mu);
+
+    g2o::VertexSE3Expmap * rot_matrix_mu = new g2o::VertexSE3Expmap();
+    rot_matrix_mu->setId(measurement_id + 1);
     rot_matrix_mu->setEstimate(se_3_quat);
+    optimizer_.addVertex(rot_matrix_mu);
+
+    for (int i = 0; i < points[i].size(); ++i) {
+      EdgeError * e = new EdgeError(original_points[measurement_id][i]);
+      e->setMeasurement(points[measurement_id][i]);
+      e->setVertex(0, camera_params);
+      e->setVertex(1, rot_matrix_mu);
+      e->setId(15);
+      optimizer_.addEdge(e);
+    }
   }
+
+  /*typedef g2o::BlockSolver< g2o::BlockSolverTraits<6, 3> >  BalBlockSolver;
+  typedef g2o::LinearSolverCholmod<BalBlockSolver::PoseMatrixType> BalLinearSolver;
+  auto cholesky = g2o::make_unique<BalLinearSolver>();
+  cholesky->setBlockOrdering(true);
+  linearSolver = std::move(cholesky);
+  g2o::OptimizationAlgorithmLevenberg* solver = new g2o::OptimizationAlgorithmLevenberg(
+      g2o::make_unique<BalBlockSolver>(std::move(linearSolver)));
+
+  optimizer_.*/
+
+
+
 }
 
 void IntrinsicSolver::ComputeRotationMatrix(const IntrinsicSolver::Matx33d & h,
