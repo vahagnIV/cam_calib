@@ -9,6 +9,7 @@
 #include <g2o/core/optimization_algorithm_levenberg.h>
 #include <g2o/core/block_solver.h>
 #include <g2o/solvers/cholmod/linear_solver_cholmod.h>
+#include <g2o/solvers/eigen/linear_solver_eigen.h>
 #include "vertex_camera.h"
 #include "edge_error.h"
 
@@ -16,6 +17,23 @@ namespace g2o_learning {
 
 void IntrinsicSolver::Calbirate(const std::vector<std::vector<Eigen::Vector2d>> & points,
                                 const std::vector<std::vector<Eigen::Vector2d>> & original_points) {
+
+
+  // create the linear solver
+  typedef g2o::BlockSolver< g2o::BlockSolverTraits<9, 6> >  BalBlockSolver;
+  typedef g2o::LinearSolverCholmod<BalBlockSolver::PoseMatrixType> BalLinearSolver;
+
+  std::unique_ptr<g2o::LinearSolver<BalBlockSolver::PoseMatrixType>> linearSolver;
+  auto cholesky = g2o::make_unique<BalLinearSolver>();
+  cholesky->setBlockOrdering(true);
+  linearSolver = std::move(cholesky);
+
+  g2o::OptimizationAlgorithmLevenberg* optimizationAlgorithm = new g2o::OptimizationAlgorithmLevenberg(
+      g2o::make_unique<BalBlockSolver>(std::move(linearSolver)));
+
+  optimizer_.setVerbose(true);
+  optimizer_.setAlgorithm(optimizationAlgorithm);
+
   assert(points.size() == original_points.size());
   std::vector<Matx33d> homographies(points.size());
   for (int i = 0; i < points.size(); ++i) {
@@ -39,8 +57,6 @@ void IntrinsicSolver::Calbirate(const std::vector<std::vector<Eigen::Vector2d>> 
       0, 0, 1;
 
   Matx33d Kinv = K.inverse();
-  int edge_id;
-
   for (size_t measurement_id = 0; measurement_id < points.size(); ++measurement_id) {
     Matx33d rotation_matrix_mu;
     Eigen::Vector3d translation_vector_mu;
@@ -56,26 +72,29 @@ void IntrinsicSolver::Calbirate(const std::vector<std::vector<Eigen::Vector2d>> 
     optimizer_.addVertex(rot_matrix_mu);
 
     for (int i = 0; i < points[i].size(); ++i) {
-      EdgeError * e = new EdgeError(original_points[measurement_id][i]);
+      EdgeError * e = new EdgeError();
+      e->setOriginalPoint(original_points[measurement_id][i]);
       e->setMeasurement(points[measurement_id][i]);
       e->setVertex(0, camera_params);
       e->setVertex(1, rot_matrix_mu);
-      e->setId(15);
-      optimizer_.addEdge(e);
+      e->setInformation(Eigen::Matrix2d::Identity());
+      e->setId((measurement_id + 1) * points.size() + i + 2);
+      if(!optimizer_.addEdge(e))
+        throw std::runtime_error("Could not add edge");
     }
   }
 
-  /*typedef g2o::BlockSolver< g2o::BlockSolverTraits<6, 3> >  BalBlockSolver;
-  typedef g2o::LinearSolverCholmod<BalBlockSolver::PoseMatrixType> BalLinearSolver;
-  auto cholesky = g2o::make_unique<BalLinearSolver>();
-  cholesky->setBlockOrdering(true);
-  linearSolver = std::move(cholesky);
-  g2o::OptimizationAlgorithmLevenberg* solver = new g2o::OptimizationAlgorithmLevenberg(
-      g2o::make_unique<BalBlockSolver>(std::move(linearSolver)));
-
-  optimizer_.*/
+//  typedef g2o::BlockSolver<g2o::BlockSolverX> BalBlockSolver;
+//  typedef g2o::LinearSolverCholmod<g2o::BlockSolverX::PoseMatrixType> BalLinearSolver;
 
 
+//  std::unique_ptr<BalLinearSolver> cholesky = g2o::make_unique<BalLinearSolver>();
+//  cholesky->setBlockOrdering(true);
+//  auto linearSolver = g2o::make_unique<g2o::LinearSolverEigen<g2o::BlockSolverX::PoseMatrixType>>();
+
+
+  optimizer_.initializeOptimization();
+  optimizer_.optimize(10);
 
 }
 

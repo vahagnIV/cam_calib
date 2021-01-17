@@ -13,7 +13,8 @@ namespace g2o_learning {
 
 class EdgeError : public g2o::BaseBinaryEdge<2, Eigen::Vector2d, VertexCamera, g2o::VertexSE3Expmap> {
  public:
-  EdgeError(const Eigen::Vector2d & pattern_point) : pattern_point_(pattern_point[0], pattern_point[1], 1) {}
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW;
+  EdgeError() {}
  public:
   void computeError() override {
 
@@ -28,6 +29,12 @@ class EdgeError : public g2o::BaseBinaryEdge<2, Eigen::Vector2d, VertexCamera, g
   bool write(std::ostream & os) const override {
     assert(!"EdgeError: Write is not implemented yet");
     return false;
+  }
+
+  void setOriginalPoint(const Eigen::Vector2d & pattern_point) {
+    pattern_point_[0] = pattern_point[0];
+    pattern_point_[1] = pattern_point[1];
+    pattern_point_[2] = 1;
   }
  private:
   Eigen::Vector3d pattern_point_;
