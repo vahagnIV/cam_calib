@@ -25,10 +25,7 @@ void IntrinsicSolver::Calbirate(const std::vector<std::vector<Eigen::Vector2d>> 
   assert(points.size() == original_points.size());
   std::vector<Matx33d> homographies(points.size());
   for (int i = 0; i < points.size(); ++i) {
-    std::vector<Eigen::Vector2d> pts = {points[i][0], points[i][7], points[i][12 * 8], points[i][12 * 8 + 4]};
-    std::vector<Eigen::Vector2d> pts1 =
-        {original_points[i][0], original_points[i][7], original_points[i][12 * 8], original_points[i][12 * 8 + 4]};
-    Find3HomographyFromPlanar4Points(pts, pts1, homographies[i]);
+    Find3HomographyFromPlanar4Points(points[i], original_points[i], homographies[i]);
   }
   VertexCamera::EstimateType camera_matrix_params_estimate;
   GetCameraMatrixInitialEstimate(homographies, camera_matrix_params_estimate);
@@ -83,7 +80,7 @@ void IntrinsicSolver::Calbirate(const std::vector<std::vector<Eigen::Vector2d>> 
   g2o::OptimizationAlgorithmLevenberg *optimizationAlgorithm = new g2o::OptimizationAlgorithmLevenberg(
       g2o::make_unique<BalBlockSolver>(std::move(linearSolver)));
 
-  optimizer.setVerbose(true);
+//  optimizer.setVerbose(true);
   optimizer.setAlgorithm(optimizationAlgorithm);
 
   optimizer.initializeOptimization();
@@ -174,33 +171,37 @@ void IntrinsicSolver::Find3HomographyFromPlanar4Points(const std::vector<Eigen::
                                                        const std::vector<Eigen::Vector2d> & points_from,
                                                        Matx33d & out_homography) const {
 
-  const int N = 4;
-  if (points_to.size() < N || points_from.size() < N)
+  if (points_to.size() < 4 || points_from.size() < 4)
     throw std::runtime_error("FindHomographyFromFirst4Points: there should be at least 4 point correspondences. ");
+  Eigen::Matrix<double, Eigen::Dynamic, 9> L;
+  L.resize(points_to.size() * 2, Eigen::NoChange);
 
-  const Eigen::Vector2d & U0 = points_to[0];
-  const Eigen::Vector2d & X0 = points_from[0];
+  for (size_t i = 0; i < points_to.size(); ++i) {
+    const Eigen::Vector2d & U = points_to[i];
+    const Eigen::Vector2d & X = points_from[i];
 
-  const Eigen::Vector2d & U1 = points_to[1];
-  const Eigen::Vector2d & X1 = points_from[1];
+    L(2 * i, 0) = X[0];
+    L(2 * i, 1) = X[1];
+    L(2 * i, 2) = 1;
+    L(2 * i, 3) = 0;
+    L(2 * i, 4) = 0;
+    L(2 * i, 5) = 0;
+    L(2 * i, 6) = -U[0] * X[0];
+    L(2 * i, 7) = -U[0] * X[1];
+    L(2 * i, 8) = -U[0];
 
-  const Eigen::Vector2d & U2 = points_to[2];
-  const Eigen::Vector2d & X2 = points_from[2];
+    L(2 * i + 1, 0) = 0;
+    L(2 * i + 1, 1) = 0;
+    L(2 * i + 1, 2) = 0;
+    L(2 * i + 1, 3) = X[0];
+    L(2 * i + 1, 4) = X[1];
+    L(2 * i + 1, 5) = 1;
+    L(2 * i + 1, 6) = -U[1] * X[0];
+    L(2 * i + 1, 7) = -U[1] * X[1];
+    L(2 * i + 1, 8) = -U[1];
+  }
 
-  const Eigen::Vector2d & U3 = points_to[3];
-  const Eigen::Vector2d & X3 = points_from[3];
-  Eigen::Matrix<double, 2 * N, 9> L;
-
-  L << X0[0], X0[1], 1, 0, 0, 0, -U0[0] * X0[0], -U0[0] * X0[1], -U0[0],
-      0, 0, 0, X0[0], X0[1], 1, -U0[1] * X0[0], -U0[1] * X0[1], -U0[1],
-      X1[0], X1[1], 1, 0, 0, 0, -U1[0] * X1[0], -U1[0] * X1[1], -U1[0],
-      0, 0, 0, X1[0], X1[1], 1, -U1[1] * X1[0], -U1[1] * X1[1], -U1[1],
-      X2[0], X2[1], 1, 0, 0, 0, -U2[0] * X2[0], -U2[0] * X2[1], -U2[0],
-      0, 0, 0, X2[0], X2[1], 1, -U2[1] * X2[0], -U2[1] * X2[1], -U2[1],
-      X3[0], X3[1], 1, 0, 0, 0, -U3[0] * X3[0], -U3[0] * X3[1], -U3[0],
-      0, 0, 0, X3[0], X3[1], 1, -U3[1] * X3[0], -U3[1] * X3[1], -U3[1];
-
-  Eigen::JacobiSVD<Eigen::Matrix<double, 8, 9>> svd(L, Eigen::ComputeFullU | Eigen::ComputeFullV);
+  Eigen::JacobiSVD<Eigen::Matrix<double, Eigen::Dynamic, 9>> svd(L, Eigen::ComputeFullU | Eigen::ComputeFullV);
   if (!svd.computeV())
     throw std::runtime_error("Could not estimate homography");
 

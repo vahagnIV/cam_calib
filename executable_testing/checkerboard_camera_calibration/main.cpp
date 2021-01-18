@@ -93,6 +93,8 @@ int main(int argc, char *argv[]) {
 
   cv::Mat cammat, distCoeffs;
   std::vector<cv::Mat> rvecs, tvecs;
+
+  std::chrono::system_clock::time_point t1 = std::chrono::system_clock::now();
   cv::calibrateCamera(std::vector<std::vector<cv::Point3f> >(corners.size(), cv_pattern_points_2d),
                       cv_corners,
                       cv::Size(640, 480),
@@ -100,24 +102,29 @@ int main(int argc, char *argv[]) {
                       distCoeffs,
                       tvecs,
                       tvecs);
+  std::chrono::system_clock::time_point t2 = std::chrono::system_clock::now();
 
   g2o_learning::IntrinsicSolver solver;
 //  TestHomography(solver);
   g2o_learning::IntrinsicSolver::Matx33d intrinsic_matrix;
   g2o_learning::IntrinsicSolver::Vector5d dist_coeffs;
+  std::chrono::system_clock::time_point t3 = std::chrono::system_clock::now();
   solver.Calbirate(corners,
                    std::vector<std::vector<Eigen::Vector2d> >(corners.size(), pattern_points_2d),
                    intrinsic_matrix,
                    dist_coeffs);
+  std::chrono::system_clock::time_point t4 = std::chrono::system_clock::now();
 
 
   std::cout << " -====== My =======" << std::endl;
   std::cout << intrinsic_matrix << std::endl;
   std::cout << dist_coeffs << std::endl;
+  std::cout << "Time: " << std::chrono::duration_cast<std::chrono::nanoseconds>(t4 - t3).count() << std::endl;
 
   std::cout << "=== Opencv ==== " << std::endl;
   std::cout << cammat << std::endl;
   std::cout << distCoeffs << std::endl;
+  std::cout << "Time: " << std::chrono::duration_cast<std::chrono::nanoseconds>(t2 - t1).count() << std::endl;
 
   return 0;
 }
