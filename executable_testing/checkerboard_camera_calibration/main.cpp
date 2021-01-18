@@ -7,7 +7,7 @@
 #include <opencv2/opencv.hpp>
 #include <Eigen/Eigen>
 
-void ListDirectory(const std::string &path, std::vector<std::string> &out_files) {
+void ListDirectory(const std::string & path, std::vector<std::string> & out_files) {
   boost::filesystem::path dir(path);
   boost::filesystem::directory_iterator it(path);
   for (; it != boost::filesystem::directory_iterator(); ++it) {
@@ -16,19 +16,21 @@ void ListDirectory(const std::string &path, std::vector<std::string> &out_files)
   }
 }
 
-void ExtractCorners(const std::vector<std::string> &imnames,
-                    std::vector<std::vector<Eigen::Vector2d>> &out_corners,
-                    const cv::Size &pattern_size) {
+void ExtractCorners(const std::vector<std::string> & imnames,
+                    std::vector<std::vector<Eigen::Vector2d>> & out_corners,
+                    const cv::Size & pattern_size,
+                    std::vector<std::vector<cv::Point2f>> & cv_points) {
   out_corners.reserve(imnames.size());
-  for (const std::string &s: imnames) {
+  for (const std::string & s: imnames) {
     cv::Mat image = cv::imread(s, cv::IMREAD_GRAYSCALE);
     std::vector<cv::Point2f> corners;
     if (cv::findChessboardCorners(image, pattern_size, corners)) {
       cv::cornerSubPix(image, corners, cv::Size(11, 11), cv::Size(-1, -1),
                        cv::TermCriteria(cv::TermCriteria::EPS | cv::TermCriteria::MAX_ITER, 30, 0.1));
       out_corners.resize(out_corners.size() + 1);
+      cv_points.push_back(corners);
 
-      for (const cv::Point2f &corner: corners) {
+      for (const cv::Point2f & corner: corners) {
         out_corners.back().push_back(Eigen::Vector2d(corner.x, corner.y));
       }
 //      cv::drawChessboardCorners(image, pattern_size, corners, true);
@@ -39,10 +41,13 @@ void ExtractCorners(const std::vector<std::string> &imnames,
   }
 }
 
-void ComputeOriginalPoints(const cv::Size &pattern_size, std::vector<Eigen::Vector2d> &out_points) {
+void ComputeOriginalPoints(const cv::Size & pattern_size,
+                           std::vector<Eigen::Vector2d> & out_points,
+                           std::vector<cv::Point3f> & cv_out_points) {
   for (int j = 0; j < pattern_size.height; ++j) {
     for (int i = 0; i < pattern_size.width; ++i) {
       out_points.push_back(Eigen::Vector2d(i, j));
+      cv_out_points.push_back(cv::Point3f(i, j, 0));
     }
   }
 }
@@ -77,15 +82,33 @@ int main(int argc, char *argv[]) {
   const cv::Size pattern_size(8, 13);
   std::vector<std::string> files;
   ListDirectory("../../../data/calib", files);
+  for (const std::string & s:files)
+    std::cout << s << std::endl;
   std::vector<std::vector<Eigen::Vector2d>> corners;
-  ExtractCorners(files, corners, pattern_size);
+  std::vector<std::vector<cv::Point2f>> cv_corners;
+  ExtractCorners(files, corners, pattern_size, cv_corners);
   std::vector<Eigen::Vector2d> pattern_points_2d;
-  ComputeOriginalPoints(pattern_size, pattern_points_2d);
+  std::vector<cv::Point3f> cv_pattern_points_2d;
+  ComputeOriginalPoints(pattern_size, pattern_points_2d, cv_pattern_points_2d);
+
+  cv::Mat cammat, distCoeffs;
+  std::vector<cv::Mat> rvecs, tvecs;
+  cv::calibrateCamera(std::vector<std::vector<cv::Point3f> >(corners.size(), cv_pattern_points_2d),
+                      cv_corners,
+                      cv::Size(640, 480),
+                      cammat,
+                      distCoeffs,
+                      tvecs,
+                      tvecs);
+
 
   g2o_learning::IntrinsicSolver solver;
 //  TestHomography(solver);
   solver.Calbirate(corners, std::vector<std::vector<Eigen::Vector2d> >(corners.size(), pattern_points_2d));
   //solver.FindIntrinsicParameters();
+  std::cout << "=== Opencv ==== " << std::endl;
+  std::cout << cammat << std::endl;
+  std::cout << distCoeffs << std::endl;
 
 
   return 0;

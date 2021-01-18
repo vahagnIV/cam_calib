@@ -206,8 +206,8 @@ void InitializeEstimates(const std::vector<Eigen::Vector3d> &true_points,
 
         g2o::EdgeProjectXYZ2UV *error
             = new g2o::EdgeProjectXYZ2UV();
-        error->setVertex(0, dynamic_cast<g2o::OptimizableGraph::Vertex *>(v_p));
-        error->setVertex(1, dynamic_cast<g2o::OptimizableGraph::Vertex *>(optimizer.vertices().find(j)->second));
+        error->setVertex(0,v_p);
+        error->setVertex(1, (optimizer.vertices().find(j)->second));
 
         if (sam < OUTLIER_RATIO) {
           inlier = false;

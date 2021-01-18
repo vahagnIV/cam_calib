@@ -33,7 +33,7 @@ class VertexCamera : public g2o::BaseVertex<9, Eigen::VectorXd> {
     assert(!"Set to Origin is not Implemented yet");
   }
 
-  void oplusImpl(const double * update) override {
+  void oplusImpl(const double *update) override {
     Eigen::VectorXd::ConstMapType v(update, VertexCamera::Dimension);
     _estimate += v;
   }
@@ -54,15 +54,15 @@ class VertexCamera : public g2o::BaseVertex<9, Eigen::VectorXd> {
     double & x = result[0];
     double & y = result[1];
 
-    double z_inv = 1 / vector[3];
-    x = (vector[0] * fx + cx) * z_inv;
-    y = (vector[1] * fy + cy) * z_inv;
+    double z_inv = 1 / vector[2];
+    x = vector[0] * fx * z_inv + cx;
+    y = vector[1] * fy * z_inv + cy;
 
     double r2 = x * x + y * y;
     double r4 = r2 * r2;
     double r6 = r4 * r2;
-    double xdiff = x * (k1 * r2 + k2 * r4 + k3 * r6) + 2 * p1 * y * x + p2 * (r2 + x * x);
-    double ydiff = y * (k1 * r2 + k2 * r4 + k3 * r6) + 2 * p2 * y * x + p1 * (r2 + y * y);
+    double xdiff = x * (k1 * r2 + k2 * r4 + k3 * r6) + 2 * p1 * y * x + p2 * (r2 + 2 *x * x);
+    double ydiff = y * (k1 * r2 + k2 * r4 + k3 * r6) + 2 * p2 * y * x + p1 * (r2 + 2 * y * y);
     x += xdiff;
     y += ydiff;
     return result;

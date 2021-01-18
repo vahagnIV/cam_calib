@@ -19,20 +19,7 @@ void IntrinsicSolver::Calbirate(const std::vector<std::vector<Eigen::Vector2d>> 
                                 const std::vector<std::vector<Eigen::Vector2d>> & original_points) {
 
 
-  // create the linear solver
-  typedef g2o::BlockSolver< g2o::BlockSolverTraits<9, 6> >  BalBlockSolver;
-  typedef g2o::LinearSolverCholmod<BalBlockSolver::PoseMatrixType> BalLinearSolver;
 
-  std::unique_ptr<g2o::LinearSolver<BalBlockSolver::PoseMatrixType>> linearSolver;
-  auto cholesky = g2o::make_unique<BalLinearSolver>();
-  cholesky->setBlockOrdering(true);
-  linearSolver = std::move(cholesky);
-
-  g2o::OptimizationAlgorithmLevenberg* optimizationAlgorithm = new g2o::OptimizationAlgorithmLevenberg(
-      g2o::make_unique<BalBlockSolver>(std::move(linearSolver)));
-
-  optimizer_.setVerbose(true);
-  optimizer_.setAlgorithm(optimizationAlgorithm);
 
   assert(points.size() == original_points.size());
   std::vector<Matx33d> homographies(points.size());
@@ -56,19 +43,21 @@ void IntrinsicSolver::Calbirate(const std::vector<std::vector<Eigen::Vector2d>> 
       0, camera_matrix_params_estimate[1], camera_matrix_params_estimate[3],
       0, 0, 1;
 
+
   Matx33d Kinv = K.inverse();
   for (size_t measurement_id = 0; measurement_id < points.size(); ++measurement_id) {
     Matx33d rotation_matrix_mu;
     Eigen::Vector3d translation_vector_mu;
 
     ComputeRotationMatrix(homographies[measurement_id], Kinv, rotation_matrix_mu, translation_vector_mu);
-    Eigen::Quaterniond rquat(rotation_matrix_mu);
-    rquat.normalize();
-    g2o::SE3Quat se_3_quat(rquat, translation_vector_mu);
+//    Eigen::Quaterniond rquat(rotation_matrix_mu);
+//    rquat.normalize();
+    g2o::SE3Quat se_3_quat(rotation_matrix_mu, translation_vector_mu);
 
     g2o::VertexSE3Expmap * rot_matrix_mu = new g2o::VertexSE3Expmap();
     rot_matrix_mu->setId(measurement_id + 1);
     rot_matrix_mu->setEstimate(se_3_quat);
+//    rot_matrix_mu->setMarginalized(true);
     optimizer_.addVertex(rot_matrix_mu);
 
     for (int i = 0; i < points[i].size(); ++i) {
@@ -83,18 +72,28 @@ void IntrinsicSolver::Calbirate(const std::vector<std::vector<Eigen::Vector2d>> 
         throw std::runtime_error("Could not add edge");
     }
   }
+  // create the linear solver
+//  typedef g2o::BlockSolver< g2o::BlockSolverTraits<15, 15> >  BalBlockSolver;
+  typedef g2o::BlockSolverX  BalBlockSolver;
+//  typedef g2o::BlockSolver< g2o::BlockSolverTraits<Eigen::Dynamic, Eigen::Dynamic> > BalBlockSolver;
+  typedef g2o::LinearSolverCholmod<BalBlockSolver::PoseMatrixType> BalLinearSolver;
 
-//  typedef g2o::BlockSolver<g2o::BlockSolverX> BalBlockSolver;
-//  typedef g2o::LinearSolverCholmod<g2o::BlockSolverX::PoseMatrixType> BalLinearSolver;
+  std::unique_ptr<g2o::LinearSolver<BalBlockSolver::PoseMatrixType>> linearSolver;
+  auto cholesky = g2o::make_unique<BalLinearSolver>();
+  cholesky->setBlockOrdering(true);
+  linearSolver = std::move(cholesky);
 
+  g2o::OptimizationAlgorithmLevenberg* optimizationAlgorithm = new g2o::OptimizationAlgorithmLevenberg(
+      g2o::make_unique<BalBlockSolver>(std::move(linearSolver)));
 
-//  std::unique_ptr<BalLinearSolver> cholesky = g2o::make_unique<BalLinearSolver>();
-//  cholesky->setBlockOrdering(true);
-//  auto linearSolver = g2o::make_unique<g2o::LinearSolverEigen<g2o::BlockSolverX::PoseMatrixType>>();
+  optimizer_.setVerbose(true);
+  optimizer_.setAlgorithm(optimizationAlgorithm);
 
 
   optimizer_.initializeOptimization();
-  optimizer_.optimize(10);
+  optimizer_.optimize(150);
+
+  std::cout << camera_params->estimate() << std::endl;
 
 }
 
@@ -103,9 +102,11 @@ void IntrinsicSolver::ComputeRotationMatrix(const IntrinsicSolver::Matx33d & h,
                                             IntrinsicSolver::Matx33d & out_rotM,
                                             Eigen::Vector3d & out_T) {
   Eigen::Vector3d h1, h2, h3, r1, r2, r3;
+
   h1 << h(0, 0), h(1, 0), h(2, 0);
   h2 << h(0, 1), h(1, 1), h(2, 1);
   h3 << h(0, 2), h(1, 2), h(2, 2);
+
   r1 = Kinv * h1;
   double norm = std::sqrt(r1.dot(r1));
   r1 = r1 / norm;
@@ -118,11 +119,6 @@ void IntrinsicSolver::ComputeRotationMatrix(const IntrinsicSolver::Matx33d & h,
       r1[2], r2[2], r3[2];
 
   out_T = Kinv * h3 / norm;
-
-//  std::cout << "Rotation matrix = " << out_rotM << std::endl;
-//  std::cout << "R R^T = " << out_rotM.transpose() * out_rotM << std::endl;
-//  std::cout << "T = " << out_T << std::endl;
-
 }
 
 void IntrinsicSolver::GetCameraMatrixInitialEstimate(const std::vector<Matx33d> & homographies,
@@ -179,7 +175,8 @@ void IntrinsicSolver::Find3HomographyFromPlanar4Points(const std::vector<Eigen::
                                                        const std::vector<Eigen::Vector2d> & points_from,
                                                        Matx33d & out_homography) const {
 
-  if (points_to.size() < 4 || points_from.size() < 4)
+  const int N = 4;
+  if (points_to.size() < N || points_from.size() < N)
     throw std::runtime_error("FindHomographyFromFirst4Points: there should be at least 4 point correspondences. ");
 
   const Eigen::Vector2d & U0 = points_to[0];
@@ -193,7 +190,7 @@ void IntrinsicSolver::Find3HomographyFromPlanar4Points(const std::vector<Eigen::
 
   const Eigen::Vector2d & U3 = points_to[3];
   const Eigen::Vector2d & X3 = points_from[3];
-  Eigen::Matrix<double, 8, 9> L;
+  Eigen::Matrix<double, 2 * N, 9> L;
 
   L << X0[0], X0[1], 1, 0, 0, 0, -U0[0] * X0[0], -U0[0] * X0[1], -U0[0],
       0, 0, 0, X0[0], X0[1], 1, -U0[1] * X0[0], -U0[1] * X0[1], -U0[1],
