@@ -51,20 +51,23 @@ class VertexCamera : public g2o::BaseVertex<9, Eigen::VectorXd> {
     const double & k3 = _estimate[8];
 
     Eigen::Vector2d result;
-    double & x = result[0];
-    double & y = result[1];
-
     double z_inv = 1 / vector[2];
-    x = vector[0] * fx * z_inv + cx;
-    y = vector[1] * fy * z_inv + cy;
+    double x = vector[0] * z_inv;
+    double y = vector[1] * z_inv;
 
     double r2 = x * x + y * y;
     double r4 = r2 * r2;
     double r6 = r4 * r2;
-    double xdiff = x * (k1 * r2 + k2 * r4 + k3 * r6) + 2 * p1 * y * x + p2 * (r2 + 2 *x * x);
-    double ydiff = y * (k1 * r2 + k2 * r4 + k3 * r6) + 2 * p2 * y * x + p1 * (r2 + 2 * y * y);
-    x += xdiff;
-    y += ydiff;
+
+    double cdist = 1 + k1 * r2 + k2 * r4 + k3 * r6;
+    double a1 = 2 * x * y;
+
+
+    double xd = x * cdist +  p1 * a1 + p2 * (r2 + 2 * x * x);
+    double yd = y * cdist +  p2 * a1 + p1 * (r2 + 2 * y * y);
+
+    result[0] = xd * fx + cx;
+    result[1] = yd * fy + cy;
     return result;
   }
 };

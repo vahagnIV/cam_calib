@@ -101,15 +101,23 @@ int main(int argc, char *argv[]) {
                       tvecs,
                       tvecs);
 
-
   g2o_learning::IntrinsicSolver solver;
 //  TestHomography(solver);
-  solver.Calbirate(corners, std::vector<std::vector<Eigen::Vector2d> >(corners.size(), pattern_points_2d));
-  //solver.FindIntrinsicParameters();
+  g2o_learning::IntrinsicSolver::Matx33d intrinsic_matrix;
+  g2o_learning::IntrinsicSolver::Vector5d dist_coeffs;
+  solver.Calbirate(corners,
+                   std::vector<std::vector<Eigen::Vector2d> >(corners.size(), pattern_points_2d),
+                   intrinsic_matrix,
+                   dist_coeffs);
+
+
+  std::cout << " -====== My =======" << std::endl;
+  std::cout << intrinsic_matrix << std::endl;
+  std::cout << dist_coeffs << std::endl;
+
   std::cout << "=== Opencv ==== " << std::endl;
   std::cout << cammat << std::endl;
   std::cout << distCoeffs << std::endl;
-
 
   return 0;
 }

@@ -16,10 +16,11 @@
 namespace g2o_learning {
 
 void IntrinsicSolver::Calbirate(const std::vector<std::vector<Eigen::Vector2d>> & points,
-                                const std::vector<std::vector<Eigen::Vector2d>> & original_points) {
+                                const std::vector<std::vector<Eigen::Vector2d>> & original_points,
+                                Matx33d & out_intrinsic_matrix,
+                                Eigen::Matrix<double, 5, 1> & out_distortion_coefficients) const {
 
-
-
+  g2o::SparseOptimizer optimizer;
 
   assert(points.size() == original_points.size());
   std::vector<Matx33d> homographies(points.size());
@@ -33,16 +34,15 @@ void IntrinsicSolver::Calbirate(const std::vector<std::vector<Eigen::Vector2d>> 
   GetCameraMatrixInitialEstimate(homographies, camera_matrix_params_estimate);
 
   // Camera Matrix
-  VertexCamera * camera_params = new VertexCamera();
+  VertexCamera *camera_params = new VertexCamera();
   camera_params->setId(0);
   camera_params->setEstimate(camera_matrix_params_estimate);
-  optimizer_.addVertex(camera_params);
+  optimizer.addVertex(camera_params);
 
   Matx33d K;
   K << camera_matrix_params_estimate[0], 0, camera_matrix_params_estimate[2],
       0, camera_matrix_params_estimate[1], camera_matrix_params_estimate[3],
       0, 0, 1;
-
 
   Matx33d Kinv = K.inverse();
   for (size_t measurement_id = 0; measurement_id < points.size(); ++measurement_id) {
@@ -50,57 +50,56 @@ void IntrinsicSolver::Calbirate(const std::vector<std::vector<Eigen::Vector2d>> 
     Eigen::Vector3d translation_vector_mu;
 
     ComputeRotationMatrix(homographies[measurement_id], Kinv, rotation_matrix_mu, translation_vector_mu);
-//    Eigen::Quaterniond rquat(rotation_matrix_mu);
-//    rquat.normalize();
-    g2o::SE3Quat se_3_quat(rotation_matrix_mu, translation_vector_mu);
+    g2o::SE3Quat pose(rotation_matrix_mu, translation_vector_mu);
+    pose.normalizeRotation();
 
-    g2o::VertexSE3Expmap * rot_matrix_mu = new g2o::VertexSE3Expmap();
-    rot_matrix_mu->setId(measurement_id + 1);
-    rot_matrix_mu->setEstimate(se_3_quat);
-//    rot_matrix_mu->setMarginalized(true);
-    optimizer_.addVertex(rot_matrix_mu);
+    g2o::VertexSE3Expmap *pose_exp_map_mu = new g2o::VertexSE3Expmap();
+    pose_exp_map_mu->setId(measurement_id + 1);
+    pose_exp_map_mu->setEstimate(pose);
+
+    optimizer.addVertex(pose_exp_map_mu);
 
     for (int i = 0; i < points[i].size(); ++i) {
-      EdgeError * e = new EdgeError();
+      EdgeError *e = new EdgeError();
       e->setOriginalPoint(original_points[measurement_id][i]);
       e->setMeasurement(points[measurement_id][i]);
       e->setVertex(0, camera_params);
-      e->setVertex(1, rot_matrix_mu);
+      e->setVertex(1, pose_exp_map_mu);
       e->setInformation(Eigen::Matrix2d::Identity());
       e->setId((measurement_id + 1) * points.size() + i + 2);
-      if(!optimizer_.addEdge(e))
+      if (!optimizer.addEdge(e))
         throw std::runtime_error("Could not add edge");
     }
   }
-  // create the linear solver
-//  typedef g2o::BlockSolver< g2o::BlockSolverTraits<15, 15> >  BalBlockSolver;
-  typedef g2o::BlockSolverX  BalBlockSolver;
-//  typedef g2o::BlockSolver< g2o::BlockSolverTraits<Eigen::Dynamic, Eigen::Dynamic> > BalBlockSolver;
-  typedef g2o::LinearSolverCholmod<BalBlockSolver::PoseMatrixType> BalLinearSolver;
 
+
+  // I do not really get what am I doing here
+  typedef g2o::BlockSolverX BalBlockSolver;
+  typedef g2o::LinearSolverCholmod<BalBlockSolver::PoseMatrixType> BalLinearSolver;
   std::unique_ptr<g2o::LinearSolver<BalBlockSolver::PoseMatrixType>> linearSolver;
   auto cholesky = g2o::make_unique<BalLinearSolver>();
   cholesky->setBlockOrdering(true);
   linearSolver = std::move(cholesky);
-
-  g2o::OptimizationAlgorithmLevenberg* optimizationAlgorithm = new g2o::OptimizationAlgorithmLevenberg(
+  g2o::OptimizationAlgorithmLevenberg *optimizationAlgorithm = new g2o::OptimizationAlgorithmLevenberg(
       g2o::make_unique<BalBlockSolver>(std::move(linearSolver)));
 
-  optimizer_.setVerbose(true);
-  optimizer_.setAlgorithm(optimizationAlgorithm);
+  optimizer.setVerbose(true);
+  optimizer.setAlgorithm(optimizationAlgorithm);
 
+  optimizer.initializeOptimization();
+  optimizer.optimize(1000);
 
-  optimizer_.initializeOptimization();
-  optimizer_.optimize(150);
-
-  std::cout << camera_params->estimate() << std::endl;
+  out_distortion_coefficients
+      << camera_params->estimate()[4], camera_params->estimate()[5], camera_params->estimate()[6], camera_params->estimate()[7], camera_params->estimate()[8];
+  out_intrinsic_matrix
+      << camera_params->estimate()[0], 0, camera_params->estimate()[2], 0, camera_params->estimate()[1], camera_params->estimate()[3], 0, 0, 1;
 
 }
 
 void IntrinsicSolver::ComputeRotationMatrix(const IntrinsicSolver::Matx33d & h,
                                             const IntrinsicSolver::Matx33d & Kinv,
                                             IntrinsicSolver::Matx33d & out_rotM,
-                                            Eigen::Vector3d & out_T) {
+                                            Eigen::Vector3d & out_T) const {
   Eigen::Vector3d h1, h2, h3, r1, r2, r3;
 
   h1 << h(0, 0), h(1, 0), h(2, 0);
