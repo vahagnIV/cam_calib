@@ -10,15 +10,14 @@
 #include <g2o/core/block_solver.h>
 #include <g2o/solvers/cholmod/linear_solver_cholmod.h>
 #include <g2o/solvers/eigen/linear_solver_eigen.h>
-#include "vertex_camera.h"
-#include "edge_error.h"
+
 
 namespace g2o_learning {
 
 void IntrinsicSolver::Calbirate(const std::vector<std::vector<Eigen::Vector2d>> & points,
                                 const std::vector<std::vector<Eigen::Vector2d>> & original_points,
                                 Matx33d & out_intrinsic_matrix,
-                                Eigen::Matrix<double, 5, 1> & out_distortion_coefficients) const {
+                                TVertexCamera::DistCoeffs_t & out_distortion_coefficients) const {
 
   g2o::SparseOptimizer optimizer;
 
@@ -27,11 +26,11 @@ void IntrinsicSolver::Calbirate(const std::vector<std::vector<Eigen::Vector2d>> 
   for (int i = 0; i < points.size(); ++i) {
     Find3HomographyFromPlanar4Points(points[i], original_points[i], homographies[i]);
   }
-  VertexCamera::EstimateType camera_matrix_params_estimate;
+  TVertexCamera::Estimate_t camera_matrix_params_estimate;
   GetCameraMatrixInitialEstimate(homographies, camera_matrix_params_estimate);
 
   // Camera Matrix
-  VertexCamera *camera_params = new VertexCamera();
+  TVertexCamera *camera_params = new TVertexCamera();
   camera_params->setId(0);
   camera_params->setEstimate(camera_matrix_params_estimate);
   optimizer.addVertex(camera_params);
@@ -57,7 +56,7 @@ void IntrinsicSolver::Calbirate(const std::vector<std::vector<Eigen::Vector2d>> 
     optimizer.addVertex(pose_exp_map_mu);
 
     for (int i = 0; i < points[i].size(); ++i) {
-      EdgeError *e = new EdgeError();
+      TEdgeError *e = new TEdgeError();
       e->setOriginalPoint(original_points[measurement_id][i]);
       e->setMeasurement(points[measurement_id][i]);
       e->setVertex(0, camera_params);
@@ -87,7 +86,9 @@ void IntrinsicSolver::Calbirate(const std::vector<std::vector<Eigen::Vector2d>> 
   optimizer.optimize(1000);
 
   out_distortion_coefficients
-      << camera_params->estimate()[4], camera_params->estimate()[5], camera_params->estimate()[6], camera_params->estimate()[7], camera_params->estimate()[8];
+      << camera_params->estimate()[4], camera_params->estimate()[5], camera_params->estimate()[6], camera_params->estimate()[7],
+      camera_params->estimate()[8], camera_params->estimate()[9], camera_params->estimate()[10], camera_params->estimate()[11];
+
   out_intrinsic_matrix
       << camera_params->estimate()[0], 0, camera_params->estimate()[2], 0, camera_params->estimate()[1], camera_params->estimate()[3], 0, 0, 1;
 
@@ -118,7 +119,7 @@ void IntrinsicSolver::ComputeRotationMatrix(const IntrinsicSolver::Matx33d & h,
 }
 
 void IntrinsicSolver::GetCameraMatrixInitialEstimate(const std::vector<Matx33d> & homographies,
-                                                     Eigen::VectorXd & out_projection_matrix) const {
+                                                     TVertexCamera::Estimate_t & out_projection_matrix) const {
 
   Eigen::Matrix<double, 6, 6> v;
   v.resize(6, Eigen::NoChange);
@@ -156,9 +157,13 @@ void IntrinsicSolver::GetCameraMatrixInitialEstimate(const std::vector<Matx33d> 
   double fy = std::sqrt(lambda / b22);
   double cx = -b13 * fx * fx / lambda;
 
-  out_projection_matrix.resize(9, Eigen::NoChange);
-  out_projection_matrix << fx, fy, cx, cy, 0, 0, 0, 0, 0;
 
+  out_projection_matrix.setZero();
+
+  out_projection_matrix[0] = fx;
+  out_projection_matrix[1] = fy;
+  out_projection_matrix[2] = cx;
+  out_projection_matrix[3] = cy;
   std::cout << "lambda = " << lambda << std::endl;
   std::cout << "cx = " << cx << std::endl;
   std::cout << "cy = " << cy << std::endl;

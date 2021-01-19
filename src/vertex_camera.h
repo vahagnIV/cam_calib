@@ -14,8 +14,11 @@ namespace g2o_learning {
  * k_1, k_2, p_1, p_2, k_3 - distortion parameters
  */
 
-class VertexCamera : public g2o::BaseVertex<9, Eigen::VectorXd> {
+template<int DistCoeffsLength>
+class VertexCamera : public g2o::BaseVertex<DistCoeffsLength + 4, Eigen::VectorXd> {
  public:
+  typedef Eigen::Matrix<double, DistCoeffsLength + 4, 1> Estimate_t;
+  typedef Eigen::Matrix<double, DistCoeffsLength, 1> DistCoeffs_t;
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW;
   VertexCamera() = default;
 
@@ -35,42 +38,34 @@ class VertexCamera : public g2o::BaseVertex<9, Eigen::VectorXd> {
 
   void oplusImpl(const double *update) override {
     Eigen::VectorXd::ConstMapType v(update, VertexCamera::Dimension);
-    _estimate += v;
+    this->_estimate += v;
   }
 
  public:
   Eigen::Vector2d map(const Eigen::Vector3d & vector) {
-    const double & fx = _estimate[0];
-    const double & fy = _estimate[1];
-    const double & cx = _estimate[2];
-    const double & cy = _estimate[3];
-    const double & k1 = _estimate[4];
-    const double & k2 = _estimate[5];
-    const double & p1 = _estimate[6];
-    const double & p2 = _estimate[7];
-    const double & k3 = _estimate[8];
+    const double & fx =  this->_estimate[0];
+    const double & fy =  this->_estimate[1];
+    const double & cx =  this->_estimate[2];
+    const double & cy =  this->_estimate[3];
 
     Eigen::Vector2d result;
     double z_inv = 1 / vector[2];
     double x = vector[0] * z_inv;
     double y = vector[1] * z_inv;
 
-    double r2 = x * x + y * y;
-    double r4 = r2 * r2;
-    double r6 = r4 * r2;
-
-    double cdist = 1 + k1 * r2 + k2 * r4 + k3 * r6;
-    double a1 = 2 * x * y;
-
-
-    double xd = x * cdist +  p1 * a1 + p2 * (r2 + 2 * x * x);
-    double yd = y * cdist +  p2 * a1 + p1 * (r2 + 2 * y * y);
+    double xd, yd;
+    ComputeDistortion(x, y, xd, yd);
 
     result[0] = xd * fx + cx;
     result[1] = yd * fy + cy;
     return result;
   }
+
+ private:
+  void ComputeDistortion(const double x, const double y, double & xd, double & yd);
 };
+
+
 
 }
 #endif //G2O_BA_TEST_SRC_VERTEX_CAMERA_H_

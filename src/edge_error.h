@@ -5,33 +5,29 @@
 #ifndef G2O_BA_TEST_SRC_EDGE_ERROR_H_
 #define G2O_BA_TEST_SRC_EDGE_ERROR_H_
 
+
 #include <g2o/core/base_binary_edge.h>
 #include <g2o/types/slam3d/vertex_se3.h>
-#include "vertex_camera.h"
+#include <g2o/types/sba/vertex_se3_expmap.h>
 
 namespace g2o_learning {
 
-class EdgeError : public g2o::BaseBinaryEdge<2, Eigen::Vector2d, VertexCamera, g2o::VertexSE3Expmap> {
+template<int CameraDistortionCoefficientSize>
+class EdgeError : public g2o::BaseBinaryEdge<2, Eigen::Vector2d, VertexCamera<CameraDistortionCoefficientSize>, g2o::VertexSE3Expmap> {
  public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW;
   EdgeError() {
-    error()[0] = error()[1] = 0;
+    this->error()[0] = this->error()[1] = 0;
   }
  public:
 
-  void linearizeOplus() override {
-    // use numeric Jacobians
-    BaseBinaryEdge<2, Eigen::Vector2d, VertexCamera, g2o::VertexSE3Expmap>::linearizeOplus();
-    return;
-  }
+
   void computeError() override {
 
     const Eigen::Vector3d
         transformed = dynamic_cast<g2o::VertexSE3Expmap *>(this->vertex(1))->estimate().map(pattern_point_);
 
-    const g2o::SE3Quat & sm = dynamic_cast<g2o::VertexSE3Expmap *>(this->vertex(1))->estimate();
-    const Eigen::Vector2d projected = dynamic_cast<VertexCamera *>(this->vertex(0))->map(transformed);
-    error() = dynamic_cast<VertexCamera *>(this->vertex(0))->map(transformed) - _measurement;
+    this->error() = dynamic_cast<VertexCamera<CameraDistortionCoefficientSize> *>(this->vertex(0))->map(transformed) - this->_measurement;
 
 
 

@@ -107,7 +107,7 @@ int main(int argc, char *argv[]) {
   g2o_learning::IntrinsicSolver solver;
 //  TestHomography(solver);
   g2o_learning::IntrinsicSolver::Matx33d intrinsic_matrix;
-  g2o_learning::IntrinsicSolver::Vector5d dist_coeffs;
+  g2o_learning::TDistortionCoefficients dist_coeffs;
   std::chrono::system_clock::time_point t3 = std::chrono::system_clock::now();
   solver.Calbirate(corners,
                    std::vector<std::vector<Eigen::Vector2d> >(corners.size(), pattern_points_2d),
